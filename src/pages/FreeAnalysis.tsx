@@ -120,7 +120,7 @@ export default function FreeAnalysis() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-ink-100">Freeform Analysis</h1>
-              <p className="text-xs text-ink-400">Powered by Gemini AI — type any conversation for real-time analysis</p>
+              <p className="text-xs text-ink-400">Powered by Concord AI — type any conversation for real-time analysis</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
