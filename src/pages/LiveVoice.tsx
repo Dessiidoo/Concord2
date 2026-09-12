@@ -258,3 +258,4 @@ export default function LiveVoice() {
   { label: 'Friction', value: a.friction, color: 'bg-signal-friction', text: 'text-signal-friction', icon: AlertTriangle },
   { label: 'Urgency', value: a.urgency, color: 'bg-signal-urgency', text: 'text-signal-urgency', icon: Zap }
 ]
+}
