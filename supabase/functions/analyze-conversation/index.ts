@@ -69,7 +69,7 @@ Guidelines:
           contents: [{ parts: [{ text: systemPrompt }] }],
           generationConfig: {
             temperature: 0,
-            maxOutputTokens: 500,
+            maxOutputTokens: 1000,
             responseMimeType: "application/json",
             responseSchema: {
               type: "object",
