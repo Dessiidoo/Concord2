@@ -18,7 +18,7 @@ type Analysis = {
   shiftDescription: string
 }
 
-type Entry = {
+type Entry = {i
   id: number
   text: string
   speaker: 'A' | 'B'
@@ -273,7 +273,7 @@ export default function LiveVoice() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-ink-100">Live Voice Analysis</h1>
-              <p className="text-xs text-ink-400">Speak into your microphone — Gemini AI analyzes in real time</p>
+              <p className="text-xs text-ink-400">Speak into your microphone — Concord AI analyzes in real time</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
