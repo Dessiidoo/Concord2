@@ -50,26 +50,15 @@ ${historyText}
 CURRENT MESSAGE TO ANALYZE:
 Speaker ${speaker}: "${message}"
 
-Analyze this message in the context of the conversation history. Return ONLY a valid JSON object with these exact fields (no markdown, no code fences, no explanation):
-
-{
-  "intent": "<one of: Cooperation, Proposal, Information Sharing, Unresolved Concern, Resistance, Reassurance, Concession, Conditional Agreement, Urgent Escalation, Active Coordination, Needs Disclosure, Value Proposition, Objection Handling, Partnership Building, or a new intent label if none fit>",
-  "alignment": <integer 0-100, how aligned the speakers appear to be>,
-  "friction": <integer 0-100, level of resistance or tension>,
-  "urgency": <integer 0-100, pressure to act>,
-  "trajectory": "<one of: converging, diverging, stable, escalating, de-escalating>",
-  "sentiment": "<two or three word description of emotional tone>",
-  "recommendation": "<one sentence actionable recommendation for the other speaker>",
-  "intentShift": <boolean, true if the intent has meaningfully shifted from the previous message's intent>,
-  "shiftDescription": "<if intentShift is true, describe the shift in one sentence; otherwise empty string>"
-}
+Analyze this message in the context of the conversation history.
 
 Guidelines:
 - alignment and friction are generally inversely correlated but not always
 - urgency should spike when language becomes pressing or escalatory
 - trajectory reflects where the conversation is heading, not just the current message
 - intentShift should be true only when there is a genuine directional change, not just a different topic
-- Be precise and analytical, not generic. Base your analysis on the actual words and context.`;
+- Be precise and analytical, not generic. Base your analysis on the actual words and context.
+- Watch for sarcasm and tone that contradicts literal word choice — do not score based on keyword presence alone.`;
 
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
@@ -79,9 +68,30 @@ Guidelines:
         body: JSON.stringify({
           contents: [{ parts: [{ text: systemPrompt }] }],
           generationConfig: {
-            temperature: 0.3,
+            temperature: 0,
             maxOutputTokens: 500,
             responseMimeType: "application/json",
+            responseSchema: {
+              type: "object",
+              properties: {
+                intent: { type: "string" },
+                alignment: { type: "integer" },
+                friction: { type: "integer" },
+                urgency: { type: "integer" },
+                trajectory: {
+                  type: "string",
+                  enum: ["converging", "diverging", "stable", "escalating", "de-escalating"],
+                },
+                sentiment: { type: "string" },
+                recommendation: { type: "string" },
+                intentShift: { type: "boolean" },
+                shiftDescription: { type: "string" },
+              },
+              required: [
+                "intent", "alignment", "friction", "urgency", "trajectory",
+                "sentiment", "recommendation", "intentShift", "shiftDescription",
+              ],
+            },
           },
         }),
       },
@@ -89,6 +99,7 @@ Guidelines:
 
     if (!geminiResponse.ok) {
       const errText = await geminiResponse.text();
+      console.error("Gemini API error:", geminiResponse.status, errText);
       return new Response(
         JSON.stringify({ error: `Gemini API error (${geminiResponse.status}): ${errText}` }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -99,6 +110,7 @@ Guidelines:
     const rawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!rawText) {
+      console.error("Gemini returned no content. Full response:", JSON.stringify(geminiData));
       return new Response(
         JSON.stringify({ error: "Gemini returned no content" }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -110,7 +122,15 @@ Guidelines:
       analysis = JSON.parse(rawText);
     } catch {
       const cleaned = rawText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      analysis = JSON.parse(cleaned);
+      try {
+        analysis = JSON.parse(cleaned);
+      } catch (parseErr) {
+        console.error("Failed to parse Gemini output. Raw text was:", rawText);
+        return new Response(
+          JSON.stringify({ error: `Gemini returned malformed JSON: ${(parseErr as Error).message}` }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
     }
 
     const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, Math.round(v)));
@@ -125,8 +145,9 @@ Guidelines:
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
+    console.error("Unhandled error:", err);
     return new Response(
-      JSON.stringify({ error: err.message || "Internal server error" }),
+      JSON.stringify({ error: (err as Error).message || "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
