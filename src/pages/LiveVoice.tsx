@@ -112,13 +112,49 @@ export default function LiveVoice() {
   const entriesRef = useRef<Entry[]>([])
   const speakerRef = useRef<'A' | 'B'>('A')
   const autoModeRef = useRef(false)
-
-  // Track speech without accumulation memory bugs
+  
+  // Safely initialized at the top of the component
   const finalSpeechBufferRef = useRef('')
+  const loadingRef = useRef(false)
 
   entriesRef.current = entries
   speakerRef.current = speaker
   autoModeRef.current = autoMode
+
+  const submitTranscript = useCallback(async () => {
+    const text = finalSpeechBufferRef.current.trim()
+    if (text.length < 3 || loadingRef.current) return
+
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
+    loadingRef.current = true
+    setLoading(true)
+    setError(null)
+
+    const currentSpeaker = speakerRef.current
+    const history = entriesRef.current.map((e) => ({ speaker: e.speaker, text: e.text }))
+
+    try {
+      const analysis = await callGeminiAnalysis(text, currentSpeaker, history)
+      const entry: Entry = {
+        id: Date.now(),
+        text,
+        speaker: currentSpeaker,
+        analysis,
+        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      }
+      setEntries((prev) => [...prev, entry])
+      
+      finalSpeechBufferRef.current = ''
+      setTranscript('')
+      setInterimTranscript('')
+      setSpeaker((prev) => (prev === 'A' ? 'B' : 'A'))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Analysis failed')
+    } finally {
+      loadingRef.current = false
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     const SR = getSpeechRecognition()
@@ -129,7 +165,6 @@ export default function LiveVoice() {
     const recognition = new SR()
     recognition.lang = 'en-US'
     recognition.continuous = true
-    // Set to false to entirely avoid the browser feeding stuttering intermediate variants
     recognition.interimResults = false 
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -142,7 +177,6 @@ export default function LiveVoice() {
       }
 
       if (freshFinalText.trim()) {
-        // Only accept concrete, finished phrases
         finalSpeechBufferRef.current = freshFinalText.trim()
         setTranscript(freshFinalText.trim())
         setInterimTranscript('')
@@ -150,7 +184,7 @@ export default function LiveVoice() {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
         silenceTimerRef.current = setTimeout(() => {
           submitTranscript()
-        }, 1200) // Trigger naturally when a complete thought ends
+        }, 1200)
       }
     }
 
@@ -181,45 +215,7 @@ export default function LiveVoice() {
       try { recognition.abort() } catch { /* noop */ }
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
     }
-  }, [])
-
-  const loadingRef = useRef(false)
-
-  const submitTranscript = useCallback(async () => {
-    const text = finalSpeechBufferRef.current.trim()
-    if (text.length < 3 || loadingRef.current) return
-
-    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-    loadingRef.current = true
-    setLoading(true)
-    setError(null)
-
-    const currentSpeaker = speakerRef.current
-    const history = entriesRef.current.map((e) => ({ speaker: e.speaker, text: e.text }))
-
-    try {
-      const analysis = await callGeminiAnalysis(text, currentSpeaker, history)
-      const entry: Entry = {
-        id: Date.now(),
-        text,
-        speaker: currentSpeaker,
-        analysis,
-        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      }
-      setEntries((prev) => [...prev, entry])
-      
-      // Flush buffers instantly to prevent stale multi-submits
-      finalSpeechBufferRef.current = ''
-      setTranscript('')
-      setInterimTranscript('')
-      setSpeaker((prev) => (prev === 'A' ? 'B' : 'A'))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Analysis failed')
-    } finally {
-      loadingRef.current = false
-      setLoading(false)
-    }
-  }, [])
+  }, [submitTranscript])
 
   const startListening = () => {
     if (!recognitionRef.current) return
@@ -258,15 +254,7 @@ export default function LiveVoice() {
   const latestAnalysis = entries.length > 0 ? entries[entries.length - 1].analysis : null
 
   const signalBars = (a: Analysis) => [
-    { label: 'Alignment', value: a.alignment, color: 'bg-signal-alignment', text: 'text-signal-alignment', icon: CheckCircle2 },
-    { label: 'Friction', value: a.friction, color: 'bg-signal-friction', text: 'text-signal-friction', icon: AlertTriangle },
-    { label: 'Urgency', value: a.urgency, color: 'bg-signal-urgency', text: 'text-signal-urgency', icon: Zap }
-  ]
-
-  // Note: The rest of your JSX template code follows down here below your states and functions
-  return (
-    <div className="p-4 bg-ink-950 text-white min-h-screen">
-      {/* Rest of UI components remain untouched */}
-    </div>
-  )
-}
+  { label: 'Alignment', value: a.alignment, color: 'bg-signal-alignment', text: 'text-signal-alignment', icon: CheckCircle2 },
+  { label: 'Friction', value: a.friction, color: 'bg-signal-friction', text: 'text-signal-friction', icon: AlertTriangle },
+  { label: 'Urgency', value: a.urgency, color: 'bg-signal-urgency', text: 'text-signal-urgency', icon: Zap }
+]
