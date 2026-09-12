@@ -18,7 +18,7 @@ type Analysis = {
   shiftDescription: string
 }
 
-type Entry = {i
+type Entry = {
   id: number
   text: string
   speaker: 'A' | 'B'
