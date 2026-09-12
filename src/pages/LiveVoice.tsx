@@ -583,7 +583,7 @@ export default function LiveVoice() {
                     className="glass rounded-xl p-5 flex items-center gap-3"
                   >
                     <Loader2 className="w-5 h-5 text-accent animate-spin" />
-                    <span className="text-sm text-ink-300">Gemini AI is analyzing...</span>
+                    <span className="text-sm text-ink-300">Concord AI is analyzing...</span>
                   </motion.div>
                 )}
               </div>
@@ -594,7 +594,7 @@ export default function LiveVoice() {
                 <Mic className="w-12 h-12 text-ink-600 mx-auto mb-4" />
                 <h3 className="text-base font-semibold text-ink-200 mb-2">Ready for live voice analysis</h3>
                 <p className="text-sm text-ink-400 max-w-md mx-auto leading-relaxed mb-4">
-                  Select a speaker, tap the microphone, and start talking. CONCORD transcribes your speech and sends it to Gemini AI for real-time analysis — alignment, friction, urgency, trajectory, and intent shifts, all live.
+                  Select a speaker, tap the microphone, and start talking. CONCORD transcribes your speech and sends it to Concord AI for real-time analysis — alignment, friction, urgency, trajectory, and intent shifts, all live.
                 </p>
                 <p className="text-xs text-ink-500">Auto-switches speakers after each message. Works best in Chrome.</p>
               </div>
